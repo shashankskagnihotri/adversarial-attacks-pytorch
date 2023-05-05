@@ -218,43 +218,35 @@ def clean_accuracy(model: nn.Module,
     acc = 0.
     n_batches = math.ceil(x.shape[0] / batch_size)
     with torch.no_grad():
+        top_1_accuracies = 0
+        top_5_accuracies = 0
+        pred_1 = 0
+        pred_5 = 0
         for counter in range(n_batches):
-            x_curr = x[counter * batch_size:(counter + 1) *
-                       batch_size].to(device)
-            y_curr = y[counter * batch_size:(counter + 1) *
-                       batch_size].to(device)
-
-            output = model(x_curr)
-            acc += (output.max(1)[1] == y_curr).float().sum()
-
-    return acc.item() / x.shape[0]
-
-def topk_accuracy(model: nn.Module,
-                   x: torch.Tensor,
-                   y: torch.Tensor,
-                   batch_size: int = 100,
-                   topk = (1,)    #Number determines the k 
-                   device: torch.device = None):
-    if device is None:
-        device = x.device
-    acc = 0.
-    n_batches = math.ceil(x.shape[0] / batch_size)
-    with torch.no_grad():
-        for counter in range(n_batches):
-            #print(counter)
             x_curr = x[counter * batch_size:(counter + 1) *
                        batch_size].to(device)
             y_curr = y[counter * batch_size:(counter + 1) *
                        batch_size].to(device)
             output = model(x_curr)
-            maxk = max(topk)
-            _, pred = output.topk(maxk, dim=1, largest=True, sorted=True)
-            top_k_acc = []
+            acc += (output.max(1)[1] == y_curr).float().sum()
+            soft_max = nn.Softmax()
+
+            # confidences 
+            confidences = soft_max(output)
+            topk = (1,5)   
             y  = F.one_hot(y, num_classes=10)
             for k in topk:
+                maxk = k
+                _, pred = output.topk(maxk, dim=1, largest=True, sorted=True)
                 correct = (y * torch.zeros_like(y).scatter(1, pred[:, :k], 1)).float()
-                top_k_acc.append(correct.sum() / y.sum())
-    return top_k_acc
+                top_acc = correct.sum() / y.sum()
+                if k == 1:
+                    top_1_accuracies += top_acc
+                else:
+                    top_5_accuracies += top_acc
+                    top_5_confidences = soft_max(pred)
+    clean_accuracy = acc.item() / x.shape[0]
+    return clean_accuracy,top_5_accuracies,confidences,top_5_confidences
         
 def get_key(x, keys):
     if isinstance(keys, str):
