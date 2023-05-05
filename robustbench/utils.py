@@ -229,23 +229,32 @@ def clean_accuracy(model: nn.Module,
 
     return acc.item() / x.shape[0]
 
-def top_k_accuracy(model: nn.Module,
+def topk_accuracy(model: nn.Module,
                    x: torch.Tensor,
                    y: torch.Tensor,
                    batch_size: int = 100,
-                   topk = (1,)
+                   topk = (1,)    #Number determines the k 
                    device: torch.device = None):
-    acc = 0.
     if device is None:
-        device = x.device 
+        device = x.device
+    acc = 0.
+    n_batches = math.ceil(x.shape[0] / batch_size)
     with torch.no_grad():
-        maxk = max(topk)
-        _, pred = output.topk(maxk, dim=1, largest=True, sorted=True)
-        top_k_acc = []
-        for k in topk:
-            correct = (y * torch.zeros_like(y).scatter(1, pred[:, :k], 1)).float()
-            top_k_acc.append(correct.sum() / y.sum())
-        return top_k_acc
+        for counter in range(n_batches):
+            #print(counter)
+            x_curr = x[counter * batch_size:(counter + 1) *
+                       batch_size].to(device)
+            y_curr = y[counter * batch_size:(counter + 1) *
+                       batch_size].to(device)
+            output = model(x_curr)
+            maxk = max(topk)
+            _, pred = output.topk(maxk, dim=1, largest=True, sorted=True)
+            top_k_acc = []
+            y  = F.one_hot(y, num_classes=10)
+            for k in topk:
+                correct = (y * torch.zeros_like(y).scatter(1, pred[:, :k], 1)).float()
+                top_k_acc.append(correct.sum() / y.sum())
+    return top_k_acc
         
 def get_key(x, keys):
     if isinstance(keys, str):
