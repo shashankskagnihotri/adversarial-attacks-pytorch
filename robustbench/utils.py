@@ -229,7 +229,24 @@ def clean_accuracy(model: nn.Module,
 
     return acc.item() / x.shape[0]
 
-
+def top_k_accuracy(model: nn.Module,
+                   x: torch.Tensor,
+                   y: torch.Tensor,
+                   batch_size: int = 100,
+                   topk = (1,)
+                   device: torch.device = None):
+    acc = 0.
+    if device is None:
+        device = x.device 
+    with torch.no_grad():
+        maxk = max(topk)
+        _, pred = output.topk(maxk, dim=1, largest=True, sorted=True)
+        top_k_acc = []
+        for k in topk:
+            correct = (y * torch.zeros_like(y).scatter(1, pred[:, :k], 1)).float()
+            top_k_acc.append(correct.sum() / y.sum())
+        return top_k_acc
+        
 def get_key(x, keys):
     if isinstance(keys, str):
         return float(x[keys])
