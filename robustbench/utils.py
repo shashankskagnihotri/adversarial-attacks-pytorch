@@ -220,8 +220,7 @@ def clean_accuracy(model: nn.Module,
     with torch.no_grad():
         top_1_accuracies = 0
         top_5_accuracies = 0
-        pred_1 = 0
-        pred_5 = 0
+        top_5_confidences = 0
         for counter in range(n_batches):
             x_curr = x[counter * batch_size:(counter + 1) *
                        batch_size].to(device)
