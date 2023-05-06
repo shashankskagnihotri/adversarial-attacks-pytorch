@@ -216,36 +216,31 @@ def clean_accuracy(model: nn.Module,
     if device is None:
         device = x.device
     acc = 0.
+    acc_1 = 0.
+    acc_5 = 0.
     n_batches = math.ceil(x.shape[0] / batch_size)
     with torch.no_grad():
-        top_1_accuracies = 0
-        top_5_accuracies = 0
-        top_5_confidences = 0
         for counter in range(n_batches):
             x_curr = x[counter * batch_size:(counter + 1) *
                        batch_size].to(device)
             y_curr = y[counter * batch_size:(counter + 1) *
                        batch_size].to(device)
             output = model(x_curr)
-            acc += (output.max(1)[1] == y_curr).float().sum()
-            soft_max = nn.Softmax()
-
-            # confidences 
+            soft_max = nn.Softmax(dim=1)
             confidences = soft_max(output)
-            topk = (1,5)   
-            y  = F.one_hot(y, num_classes=10)
-            for k in topk:
-                maxk = k
-                _, pred = output.topk(maxk, dim=1, largest=True, sorted=True)
-                correct = (y * torch.zeros_like(y).scatter(1, pred[:, :k], 1)).float()
-                top_acc = correct.sum() / y.sum()
-                if k == 1:
-                    top_1_accuracies += top_acc
-                else:
-                    top_5_accuracies += top_acc
-                    top_5_confidences = soft_max(pred)
+            acc += (output.max(1)[1] == y_curr).float().sum()
+            y_out_1= torch.topk(output, k=1, dim=1, largest=True, sorted=True)
+            acc_1 += (y_out_1[1] == y_curr.reshape(-1,1)).float().sum()
+            y_out_5= torch.topk(output, k=5, dim=1, largest=True, sorted=True)
+            top_5_confidences = soft_max(y_out_5[0])
+            for i in range(len(y_out_5[1])):
+                acc_5_ = torch.where(y_out_5[1][i] == y_curr.reshape(-1,1)[i], 1,0)
+                acc_5 += torch.sum(acc_5_)
     clean_accuracy = acc.item() / x.shape[0]
-    return clean_accuracy,top_5_accuracies,confidences,top_5_confidences
+    top_1_acc = acc_1.item() / x.shape[0]
+    top_5_acc = acc_5.item() / x.shape[0]
+    assert top_1_acc == clean_accuracy
+    return clean_accuracy,top_5_acc, confidences,top_5_confidences
         
 def get_key(x, keys):
     if isinstance(keys, str):
