@@ -118,6 +118,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
     
 
     save_path = 'results/' + dataset_name + '/' + model_name + '/' + str(atk_class) + '/' + str(steps) + '/eps_2_255/'
+    os.makedirs(save_path, exist_ok=True)
 
     test_loader = torch.utils.data.DataLoader(
         dataset,
@@ -233,6 +234,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
 
 
         nontargeted_detail_json_loc = json_paths + '/nontargeted_detailed_perf.json'
+        os.makedirs(json_paths, exist_ok=True)
         with open(nontargeted_detail_json_loc, 'w') as f:
             json.dump(detailed_results, f)
         detailed_results = {}
@@ -292,6 +294,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
 
 
             targeted_detail_json_loc = json_paths + '/targeted_detailed_perf.json'
+            os.makedirs(json_paths, exist_ok=True)
             with open(targeted_detail_json_loc, 'w') as f:
                 json.dump(detailed_results, f)
             detailed_results = {}
