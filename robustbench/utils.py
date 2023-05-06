@@ -9,12 +9,21 @@ from pathlib import Path
 from typing import Dict, Optional, Union
 
 import requests
-# import timm
+import timm
 import torch
 from torch import nn
+import torch.nn.functional as F
+import numpy as np
 
 from robustbench.model_zoo import model_dicts as all_models
 from robustbench.model_zoo.enums import BenchmarkDataset, ThreatModel
+
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
+from PIL import Image
+import cv2
+import torchvision.transforms as T
 
 
 ACC_FIELDS = {
@@ -22,6 +31,9 @@ ACC_FIELDS = {
     ThreatModel.L2: ("external", "autoattack_acc"),
     ThreatModel.Linf: ("external", "autoattack_acc")
 }
+
+ITER = 0
+ITER_grad_cam = 0
 
 
 def download_gdrive(gdrive_id, fname_save):
@@ -229,6 +241,51 @@ def clean_accuracy(model: nn.Module,
 
     return acc.item() / x.shape[0]
 
+def top_k_accuracy(model: nn.Module,
+                   x: torch.Tensor,
+                   y: torch.Tensor,
+                   batch_size: int = 128,
+                   k: int = 5,
+                   device: torch.device = None):
+    if device is None:
+        device = x.device
+    acc = 0.
+    acc_top5 = 0.
+    confidences = None
+    preds = None
+    targets = None
+    n_batches = math.ceil(x.shape[0] / batch_size)
+    with torch.no_grad():
+        for counter in range(n_batches):
+            x_curr = x[counter * batch_size:(counter + 1) *
+                       batch_size].to(device)
+            y_curr = y[counter * batch_size:(counter + 1) *
+                       batch_size].to(device)
+
+            output = model(x_curr)
+            acc += (output.max(1)[1] == y_curr).float().sum()
+            output_top5, preds_top5 = torch.topk(output, k=k, dim=1, largest=True, sorted=True)
+            for pred, label in zip(preds_top5, y_curr):
+                for p in pred:
+                    if p == label:
+                        acc_top5 += 1   
+            if confidences == None:
+                confidences = F.softmax(output_top5, dim=1)                         
+            else:
+                confidences = torch.cat((confidences, F.softmax(output_top5, dim=1)))
+            if preds == None:
+                preds = preds_top5
+            else:
+                preds = torch.cat((preds, preds_top5))
+            if targets == None:
+                targets = y_curr
+            else:
+                targets = torch.cat((targets, y_curr))
+
+    clean_accuracy =  acc.item() / x.shape[0]
+    top5_accuracy = acc_top5 / x.shape[0]
+
+    return clean_accuracy, top5_accuracy, confidences, preds, targets
 
 def get_key(x, keys):
     if isinstance(keys, str):
@@ -426,6 +483,71 @@ def update_json(dataset: BenchmarkDataset, threat_model: ThreatModel,
 
     with open(json_path, "w") as f:
         f.write(json.dumps(dataclasses.asdict(model_info), indent=2))
+    
+def reshape_transform(tensor, height=14, width=14):
+    result = tensor[:, 1 :  , :].reshape(tensor.size(0),
+        height, width, tensor.size(2))
+
+    # Bring the channels to the first dimension,
+    # like in CNNs.
+    result = result.transpose(2, 3).transpose(1, 2)
+    return result
+
+def save_clean_image(input, save_path):
+    global ITER
+    for image in input:
+        #np_image = np.uint8(image.permute(1,2,0))
+        #import ipdb;ipdb.set_trace()
+        save_path_clean = os.path.join(save_path, 'clean_image')
+        os.makedirs(save_path_clean, exist_ok=True)
+        save_location_clean=save_path_clean + '/image_00' + str(ITER) + '.png'
+        ITER += 1
+        #cv2.imwrite(save_location_clean, cv2.cvtColor(np_image*255, cv2.COLOR_RGB2BGR))
+        T.ToPILImage()(image).save(save_location_clean)
+
+def reset_iter():
+    global ITER, ITER_grad_cam
+    ITER = 0
+    ITER_grad_cam = 0
+
+
+@torch.enable_grad()
+def get_grad_cam(model: nn.Module, input, save_path):    
+    if '.ResNet' in str(model.__class__):
+        target_layer = [model.layer4[-1]]
+    elif '.ConvNeXt' in str(model.__class__):
+        try:
+            target_layer = [model.features[-1][-1]]
+        except Exception:
+            target_layer = [model.stages[-1].blocks[-1]]
+    elif '.VisionTransformer' in str(model.__class__):
+        target_layer = [model.blocks[-1].norm1]
+    
+    cam = GradCAM(model=model, target_layers=target_layer, use_cuda=True, 
+                  reshape_transform=reshape_transform if '.VisionTransformer' in str(model.__class__) else None)
+    #import ipdb;ipdb.set_trace()
+    grayscale_cam = cam(input_tensor=input, targets=None)
+    for image, g_cam in zip(input.clone().detach().cpu(), grayscale_cam):
+        save_path_grad_cam = os.path.join(save_path, 'grad_cam')
+        save_path_adversarial = os.path.join(save_path, 'adversarial')
+        os.makedirs(save_path_grad_cam, exist_ok=True)
+        os.makedirs(save_path_adversarial, exist_ok=True)
+        save_location_grad=save_path_grad_cam + '/image_00' + str(ITER_grad_cam) + '.png'
+        save_location_adversarial=save_path_adversarial + '/image_00' + str(ITER_grad_cam) + '.png'
+        
+        adv_image = T.ToPILImage()(image)        
+        colormap = cv2.COLORMAP_JET
+        heatmap = cv2.applyColorMap(np.uint8(255 * g_cam), colormap)    
+        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+        heatmap = T.ToPILImage()(torch.tensor(heatmap).permute(2,0,1))
+        mask = Image.new("L", adv_image.size, 128)
+        visualization = Image.composite(adv_image, heatmap, mask)
+        visualization.save(save_location_grad)
+        adv_image.save(save_location_adversarial)
+
+
+    
+
 
 
 @dataclasses.dataclass

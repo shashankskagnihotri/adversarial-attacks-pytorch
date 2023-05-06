@@ -15,6 +15,7 @@ from .attacks.tpgd import TPGD
 from .attacks.mifgsm import MIFGSM
 from .attacks.upgd import UPGD
 from .attacks.apgd import APGD
+from .attacks.apgd_dlr import APGD_DLR
 from .attacks.apgdt import APGDT
 from .attacks.difgsm import DIFGSM
 from .attacks.tifgsm import TIFGSM
@@ -51,7 +52,7 @@ from .attacks.square import Square
 from .wrappers.multiattack import MultiAttack
 from .wrappers.lgv import LGV
 
-__version__ = '3.4.1'
+__version__ = '3.5.1'
 __all__ = [
     "VANILA", "GN",
 
@@ -68,6 +69,13 @@ __all__ = [
     "FAB", "AutoAttack", "Square",
 
     "MultiAttack", "LGV",
+]
+__testing__ = [
+    "FGSM", "PGD", "CosPGD", 
+    "CosPGD_softmax", 
+    "MIFGSM", "UPGD", 
+    "APGD", "DIFGSM", 
+    "AutoAttack", "APGD_DLR",
 ]
 __wrapper__ = [
     "LGV", "MultiAttack",
