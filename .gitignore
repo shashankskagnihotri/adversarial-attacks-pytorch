@@ -26,4 +26,4 @@ TODO.txt
 *.png
 *.jpeg
 *.PNG
-*.json
+results/*
