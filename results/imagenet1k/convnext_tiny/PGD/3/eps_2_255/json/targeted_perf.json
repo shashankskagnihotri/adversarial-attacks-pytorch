@@ -1,0 +1,1 @@
+{"Model": "convnext_tiny", "dataset": "imagenet1k", "Attack": "PGD", "Attack_type": "Targeted", "iterations": 3, "eps": 0.00784313725490196, "Clean_Acc": 0.81484375, "Clean_Top5": 0.958203125, "Robust_Acc": 0.39609375, "Robust_Top5": 0.6900390625, "Time": 36.61399531364441}

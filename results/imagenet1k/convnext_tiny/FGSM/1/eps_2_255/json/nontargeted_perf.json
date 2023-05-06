@@ -1,0 +1,1 @@
+{"Model": "convnext_tiny", "dataset": "imagenet1k", "Attack": "FGSM", "Attack_type": "NON-targeted", "iterations": 1, "eps": 0.00784313725490196, "Clean_Acc": 0.81484375, "Clean_Top5": 0.958203125, "Robust_Acc": 0.310546875, "Robust_Top5": 0.4984375, "Time": 3.4709770679473877}

@@ -48,8 +48,8 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
     results = {}
     detailed_results = {}
 
-    cifar_10_models_paths = {'resnet50':None, 'wide_resnet50_2':'', 'convnext_tiny':'', 'resnext50_32x4d':'', 'vit_small_patch16_224':'' }
-    cifar_100_models_paths = {'resnet50':None, 'wide_resnet50_2':'', 'convnext_tiny':'', 'resnext50_32x4d':'', 'vit_small_patch16_224':'' }
+    cifar_10_models_paths = {'resnet50':None, 'wide_resnet50_2':'path/to/trained/model.pt', 'convnext_tiny':'', 'resnext50_32x4d':'', 'vit_small_patch16_224':'' }
+    cifar_100_models_paths = {'resnet50':None, 'wide_resnet50_2':'', 'convnext_tiny':'path/to/trained/model.pt', 'resnext50_32x4d':'', 'vit_small_patch16_224':'' }
 
     if CACHE.get('model_name') is None:
         CACHE['model_name'] = model_name
