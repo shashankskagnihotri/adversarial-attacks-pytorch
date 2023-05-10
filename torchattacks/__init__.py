@@ -8,6 +8,7 @@ from .attacks.bim import BIM
 from .attacks.rfgsm import RFGSM
 from .attacks.pgd import PGD
 from .attacks.cospgd import CosPGD
+from .attacks.cospgd_alpha import CosPGD_alpha
 from .attacks.cospgd_softmax import CosPGD_softmax
 from .attacks.eotpgd import EOTPGD
 from .attacks.ffgsm import FFGSM
@@ -76,6 +77,9 @@ __testing__ = [
     "MIFGSM", "UPGD", 
     "APGD", "DIFGSM", 
     "AutoAttack", "APGD_DLR",
+]
+__cospgd__ = [
+    "CosPGD_alpha"
 ]
 __wrapper__ = [
     "LGV", "MultiAttack",

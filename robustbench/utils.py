@@ -513,6 +513,7 @@ def reset_iter():
 
 @torch.enable_grad()
 def get_grad_cam(model: nn.Module, input, save_path):    
+    global ITER_grad_cam
     if '.ResNet' in str(model.__class__):
         target_layer = [model.layer4[-1]]
     elif '.ConvNeXt' in str(model.__class__):
@@ -534,6 +535,7 @@ def get_grad_cam(model: nn.Module, input, save_path):
         os.makedirs(save_path_adversarial, exist_ok=True)
         save_location_grad=save_path_grad_cam + '/image_00' + str(ITER_grad_cam) + '.png'
         save_location_adversarial=save_path_adversarial + '/image_00' + str(ITER_grad_cam) + '.png'
+        ITER_grad_cam += 1
         
         adv_image = T.ToPILImage()(image)        
         colormap = cv2.COLORMAP_JET

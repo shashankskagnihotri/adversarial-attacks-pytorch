@@ -4,7 +4,7 @@ import torch.nn as nn
 from ..attack import Attack
 
 
-class CosPGD_softmax(Attack):
+class CosPGD_alpha(Attack):
     r"""
     CosPGD in the paper 'CosPGD: a unified white-box adversarial attack for pixel-wise prediction tasks'
     [https://arxiv.org/abs/2302.02213]
@@ -31,7 +31,7 @@ class CosPGD_softmax(Attack):
     """
 
     def __init__(self, model, eps=2/255, alpha=1/255, steps=10, random_start=True, n_classes=10):
-        super().__init__("CosPGD_softmax", model)
+        super().__init__("CosPGD_alpha", model)
         self.eps = eps
         self.alpha = alpha
         self.steps = steps
@@ -45,11 +45,11 @@ class CosPGD_softmax(Attack):
 
         images = images.clone().detach().to(self.device)
         labels = labels.clone().detach().to(self.device)
-        
+        #one_hot_target = nn.functional.one_hot(labels).to(self.device)
 
         if self.targeted:
             target_labels = self.get_target_label(images, labels)
-            #one_hot_target = nn.functional.one_hot(target_labels).to(self.device)
+        #ne_hot_target = nn.functional.one_hot(target_labels).to(self.device)
             
 
         loss = nn.CrossEntropyLoss(reduction='none')
@@ -65,29 +65,31 @@ class CosPGD_softmax(Attack):
         for _ in range(self.steps):
             adv_images.requires_grad = True
             outputs = self.get_logits(adv_images)         
-            softmax_output = nn.functional.softmax(outputs, dim=1) 
-            #import ipdb;ipdb.set_trace()           
-            num_classes = outputs.shape[1]
+            sig_output = nn.functional.sigmoid(outputs) 
+            #import ipdb;ipdb.set_trace()       
+            num_classes  = outputs.shape[1]  
             if self.targeted:
                 one_hot_target = nn.functional.one_hot(target_labels, num_classes=num_classes).to(self.device)
             else:
                 one_hot_target = nn.functional.one_hot(labels, num_classes=num_classes).to(self.device)
-            cossim = nn.functional.cosine_similarity(softmax_output, one_hot_target).detach()
+            cossim = nn.functional.cosine_similarity(sig_output, one_hot_target).detach()
 
             # Calculate loss
             if self.targeted:                
                 cost = -loss(outputs, target_labels)
-                cost = (1-cossim.detach())*cost
+                #cost = (1-cossim.detach())*cost
             else:                
                 cost = loss(outputs, labels)
-                cost = cossim.detach()*cost
+                #cost = cossim.detach()*cost
 
             # Update adversarial images
             cost = cost.mean()
             grad = torch.autograd.grad(cost, adv_images,
                                        retain_graph=False, create_graph=False)[0]
-
+                                       
+            grad = cossim.detach().unsqueeze(1).unsqueeze(2).unsqueeze(3)*grad
             adv_images = adv_images.detach() + self.alpha*grad.sign()
+            #adv_images = adv_images.detach() + self.alpha*(cossim.detach() * grad.sign().permute(1,2,3,0)).permute(3,0,1,2)
             delta = torch.clamp(adv_images - images,
                                 min=-self.eps, max=self.eps)
             adv_images = torch.clamp(images + delta, min=0, max=1).detach()

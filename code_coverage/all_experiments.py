@@ -11,19 +11,22 @@ import torchattacks
 # %%
 print("*************************************              TESTING GRAD CAM              *************************************")
 models = ["convnext_tiny", "resnet50", "vit_small_patch16_224", "wide_resnet50_2"]
-iter_attacks=['PGD', 'APGD', 'CosPGD', 'CosPGD_softmax', 'DIFGSM', 'UPGD', 'MIFGSM', 'APGDT', 'APGD_DLR']
+alphas = [0.1/255, 0.3/255, 0.5/255, 0.7/255, 1/255, 1.5/255, 2/255,]
+iter_attacks=['PGD', 'APGD', 'CosPGD_alpha', 'CosPGD', 'CosPGD_softmax', 'DIFGSM', 'UPGD', 'MIFGSM', 'APGDT', 'APGD_DLR']
 for model in models:
-    for atk_class in [atk_class for atk_class in torchattacks.__testing__ if atk_class not in torchattacks.__wrapper__]:
+    for atk_class in [atk_class for atk_class in torchattacks.__cospgd__ if atk_class not in torchattacks.__wrapper__]:
         if atk_class in iter_attacks:
             steps = [3,5,10,20,40]
             for step in steps:
-                test_atks(dataset='imagenet1k',
-                            atk_class=atk_class,
-                            device='cuda',
-                            model_dir='../demo/models/',
-                            data_dir='/home/prasse/Shashank_Projects/adversarial-attacks-pytorch/data',
-                            model=model,
-                            steps=step)
+                for alpha in alphas:
+                    test_atks(dataset='imagenet1k',
+                                atk_class=atk_class,
+                                device='cuda',
+                                model_dir='../demo/models/',
+                                data_dir='/home/prasse/Shashank_Projects/adversarial-attacks-pytorch/data',
+                                model=model,
+                                steps=step,
+                                alpha=alpha)
         else:
             test_atks(dataset='imagenet1k',
                             atk_class=atk_class,

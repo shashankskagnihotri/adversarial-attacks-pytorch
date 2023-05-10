@@ -39,7 +39,7 @@ def get_data_cifar100(data_name='CIFAR100', device="cpu", n_examples=5, data_dir
 
 @torch.enable_grad()
 @pytest.mark.parametrize("atk_class", [atk_class for atk_class in torchattacks.__testing__ if atk_class not in torchattacks.__wrapper__])
-def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./models', data_dir='./data', model='resnet50', steps=1):
+def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./models', data_dir='./data', model='resnet50', steps=1, alpha=2/255):
     model_name = model
     dataset_name = dataset
     num_classes=10
@@ -117,7 +117,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
 
     
 
-    save_path = 'results/' + dataset_name + '/' + model_name + '/' + str(atk_class) + '/' + str(steps) + '/eps_2_255/'
+    save_path = 'results/' + dataset_name + '/' + model_name + '/' + str(atk_class) + '/' + str(steps) + '/eps_2_255/alpha_' + str(alpha) + '/'
     os.makedirs(save_path, exist_ok=True)
 
     test_loader = torch.utils.data.DataLoader(
@@ -179,11 +179,14 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
         reset_iter()
         if atk_class in ['SPSA']:
             kargs['max_batch_size'] = 5
-        if atk_class in ['PGD', 'APGD', 'CosPGD', 'CosPGD_softmax', 'DIFGSM', 'UPGD', 'MIFGSM', 'APGDT', 'APGD_DLR']:
+        if atk_class in ['PGD', 'APGD', 'CosPGD', 'CosPGD_alpha', 'CosPGD_softmax', 'DIFGSM', 'UPGD', 'MIFGSM', 'APGDT', 'APGD_DLR']:
             try:
-                atk = eval("torchattacks."+atk_class)(model, eps=2/255, steps=steps, n_classes=num_classes, **kargs)    
+                atk = eval("torchattacks."+atk_class)(model, eps=2/255, alpha=alpha, steps=steps, n_classes=num_classes, **kargs)    
             except Exception:
-                atk = eval("torchattacks."+atk_class)(model, eps=2/255, steps=steps, **kargs)    
+                try:
+                    atk = eval("torchattacks."+atk_class)(model, eps=2/255, steps=steps, n_classes=num_classes, **kargs)    
+                except Exception:
+                    atk = eval("torchattacks."+atk_class)(model, eps=2/255, steps=steps, **kargs)    
         else:
             try:
                 atk = eval("torchattacks."+atk_class)(model, eps=2/255, n_classes=num_classes, **kargs)
@@ -192,7 +195,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
         saving_time = 0
         start = time.time()
         with torch.enable_grad():
-            with tqdm(test_loader, unit="batch", desc=model_name+'_'+atk_class) as tepoch:                
+            with tqdm(test_loader, unit="batch", desc=model_name+'_'+atk_class + '_' + str(alpha)) as tepoch:                
                 for images, labels, _ in tepoch:
                     image, labels = images.to(device), labels.to(device)
                     adv_images = atk(images, labels)
@@ -226,6 +229,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
         final_results['Attack_type'] = 'NON-targeted'
         final_results['iterations'] = steps
         final_results['eps'] = 2/255
+        final_results['alpha'] = alpha
         final_results['Clean_Acc'] = clean_acc
         final_results['Clean_Top5']=clean_acc_top5
         final_results['Robust_Acc']=robust_acc
@@ -254,7 +258,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
             start = time.time()
             atk.set_mode_targeted_random(quiet=True)
             with torch.enable_grad():
-                with tqdm(test_loader, unit="batch", desc=model_name+'_'+atk_class) as tepoch:
+                with tqdm(test_loader, unit="batch", desc=model_name+'_'+atk_class + '_' + str(alpha)) as tepoch:
                     for images, labels, _ in tepoch:
                         image, labels = images.to(device), labels.to(device)
                         adv_images = atk(images, labels)
@@ -286,6 +290,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
             final_results['Attack_type'] = 'Targeted'
             final_results['iterations'] = steps
             final_results['eps'] = 2/255
+            final_results['alpha'] = alpha
             final_results['Clean_Acc'] = clean_acc
             final_results['Clean_Top5']=clean_acc_top5
             final_results['Robust_Acc']=robust_acc
