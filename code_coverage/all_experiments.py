@@ -11,7 +11,8 @@ import torchattacks
 # %%
 print("*************************************              TESTING GRAD CAM              *************************************")
 models = ["convnext_tiny", "resnet50", "vit_small_patch16_224", "wide_resnet50_2"]
-alphas = [0.1/255, 0.3/255, 0.5/255, 0.7/255, 1/255, 1.5/255, 2/255,]
+#alphas = [0.1/255, 0.3/255, 0.5/255, 0.7/255, 1/255, 1.5/255, 2/255,]
+alphas = [2/255]
 iter_attacks=['PGD', 'APGD', 'CosPGD_alpha', 'CosPGD', 'CosPGD_softmax', 'DIFGSM', 'UPGD', 'MIFGSM', 'APGDT', 'APGD_DLR']
 for model in models:
     for atk_class in [atk_class for atk_class in torchattacks.__cospgd__ if atk_class not in torchattacks.__wrapper__]:

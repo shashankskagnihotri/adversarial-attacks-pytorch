@@ -4,6 +4,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import time
 import pytest
+import torchvision
+import torch.nn as nn
 
 from tqdm.autonotebook import tqdm
 import torch
@@ -63,6 +65,8 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
     
     if dataset_name == 'imagenet1k':
         num_classes = 1000
+        mean = [0.485, 0.456, 0.406]  
+        std = [0.229, 0.224, 0.225]
         if CACHE.get('model') is None:
             #model = get_model(device=device, model_dir=model_dir)
             model = timm.create_model(model, pretrained=True).to(device)
@@ -73,6 +77,8 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
 
     elif dataset_name == 'cifar100':
         num_classes=100
+        mean = [0.5071, 0.4867, 0.4408]
+        std = [0.2675, 0.2565, 0.2761]
         if CACHE.get('model') is None and model is None:
             import detectors
             #model = get_model(device=device, model_dir=model_dir)
@@ -86,7 +92,11 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
             else:
                 import tejaswini_models
                 model = tejaswini_models.cifar100_models[model_name]
-                model.load_state_dict(torch.load(model_path))
+                checkpoint = torch.load(model_path)
+                #print(model_path)
+                model.load_state_dict(checkpoint['model'],strict = False)
+                print(model)
+
 
         else:
             model = CACHE['model']
@@ -94,6 +104,8 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
         dataset = get_data_cifar100(device=device, n_examples=n_examples, data_dir=data_dir)
 
     elif dataset_name == 'cifar10':
+        mean = [0.49139968, 0.48215827 ,0.44653124]
+        std = [0.24703233, 0.24348505, 0.26158768]
         if CACHE.get('model') is None and model is None:
             #model = get_model(device=device, model_dir=model_dir)
             import detectors
@@ -105,9 +117,17 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
                 import detectors            
                 model = timm.create_model("resnet50_cifar10", pretrained=True).to(device)
             else:
-                import tejaswini_models
-                model = tejaswini_models.cifar10_models[model_name]
-                model.load_state_dict(torch.load(model_path))
+                try:
+                    import tejaswini_models
+                    model = tejaswini_models.cifar10_models[model_name]
+                    checkpoint = torch.load(model_path)
+                    print(model_path)
+                    model.load_state_dict(checkpoint['model'],strict=False)
+                except:
+                    import tejaswini_models
+                    model = tejaswini_models.cifar10_models[model_name]
+                    model.load_state_dict(torch.load(model_path))
+
         else:
             model = CACHE['model']
 
@@ -115,7 +135,7 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
 
         
 
-    
+
 
     save_path = 'results/' + dataset_name + '/' + model_name + '/' + str(atk_class) + '/' + str(steps) + '/eps_2_255/alpha_' + str(alpha) + '/'
     os.makedirs(save_path, exist_ok=True)
@@ -128,6 +148,8 @@ def test_atks(dataset, atk_class, device="cpu", n_examples=128, model_dir='./mod
         pin_memory=True,
         drop_last=False
     )
+    normalize = torchvision.transforms.Normalize(mean=mean,std = std)
+    model = nn.Sequential(normalize, model)
 
     #lent=len(test_loader)
     #for i, data in enumerate(test_loader):
